@@ -9,7 +9,7 @@ ancak mimari olarak OpenAI, Azure, Google vb. gerçek embedding modelleri ile ra
 ## Teknolojiler
 
 - FastAPI (REST API)
-- SQLite + SQLAlchemy (kalıcı depolama)
+- Dosya tabanlı embedding store (`data/embeddings/*.json`)
 - Basit embedding sağlayıcı (ileride gerçek LLM embedding ile değiştirilebilir)
 
 ## Kurulum
@@ -33,9 +33,9 @@ Ardından Swagger UI üzerinden endpoint’leri inceleyebilirsiniz:
 
 ## Temel Akış
 
-1. Var olan Jira taleplerini (summary + description) bu servise gönderip embedding’leri DB’ye indekslersiniz.
+1. Var olan Jira taleplerini (summary + description) bu servise gönderip embedding’leri dosya sistemine (`data/embeddings`) indekslersiniz.
 2. Yeni bir Jira talebi geldiğinde, bu servisi çağırıp benzer talepleri sorgularsınız.
-3. Servis hem benzer talepleri döner, hem de isterseniz gelen talebi de embedding ile birlikte DB’ye kaydeder.
+3. Servis hem benzer talepleri döner, hem de isterseniz gelen talebi de embedding ile birlikte klasöre kaydeder.
 
 ## Önemli Endpoint'ler
 
@@ -43,7 +43,7 @@ Ardından Swagger UI üzerinden endpoint’leri inceleyebilirsiniz:
 
 - **GET** `/health`
 
-### Tekil Jira talebi kaydetme
+### Tekil Jira talebi kaydetme (embedding oluşturma)
 
 - **POST** `/issues`
 
@@ -78,7 +78,7 @@ Body örneği:
 ]
 ```
 
-### Benzer Jira taleplerini sorgulama
+### Benzer Jira taleplerini sorgulama (semantic search)
 
 - **POST** `/similar-issues`
 
@@ -120,14 +120,14 @@ Dönen cevap örneği:
 
 Bu proje RAG mimarisi için **retrieval** kısmını hazırlar:
 
-- Jira taleplerinin embedding’leri DB’de tutulur.
+- Jira taleplerinin embedding’leri dosya sisteminde (`data/embeddings`) tutulur.
 - Benzer talepler cosine similarity ile bulunur.
 
 Bir üst aşamada, bu benzer talepler ve Jira alanları bir LLM’e context olarak verilip:
 
 - Otomatik çözüm önerisi,
-+- İlgili eski ticket’ların özetlenmesi,
-+- Yeni ticket için otomatik açıklama/öneri oluşturma
+- İlgili eski ticket’ların özetlenmesi,
+- Yeni ticket için otomatik açıklama/öneri oluşturma
 
 gibi yetenekler eklenebilir.
 
