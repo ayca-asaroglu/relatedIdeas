@@ -1,8 +1,11 @@
 from typing import List
 
 from fastapi import Depends, FastAPI
+from sqlalchemy.orm import Session
 
+from .db import get_db
 from .embeddings import SimpleHashEmbeddingProvider
+from .jira_source import JiraDbRecord, fetch_jira_issues_from_db
 from .retrieval import JiraRetriever
 from .schemas import (
     JiraIssueCreate,
@@ -18,16 +21,16 @@ app = FastAPI(
     description=(
         "Jira taleplerinin summary/description alanlarından embedding üreten ve "
         "benzer talepleri RAG mantığı ile getiren servis.\n\n"
-        "Not: Jira kayıtlarının asıl kaynağı MSSQL olabilir; bu servis şu anda "
-        "sadece embedding'leri dosya sisteminde saklar."
+        "Not: Jira kayıtlarının asıl kaynağı MSSQL; bu servis Jira kayıtlarını "
+        "MSSQL'den okuyup embedding'leri dosya sisteminde saklar."
     ),
-    version="0.2.0",
+    version="0.3.0",
 )
 
 
 def get_retriever() -> JiraRetriever:
     """
-    DB bağımlılığını kaldırıp embedding'leri dosya sisteminde tutan retriever.
+    Embedding'leri dosya sisteminde tutan retriever.
     """
     embedder = SimpleHashEmbeddingProvider(dim=128)
     store = FileEmbeddingStore(base_dir="data/embeddings")
@@ -66,6 +69,43 @@ def bulk_create_issues(
     Örn. MSSQL Jira veritabanınızdan okuyup bu servise POST ederek
     başlangıç embedding indeksini doldurabilirsiniz.
     """
+    issues = retriever.bulk_index(items)
+    return issues
+
+
+@app.post(
+    "/issues/backfill-from-db",
+    response_model=List[JiraIssueOut],
+    tags=["issues"],
+)
+def backfill_from_mssql(
+    retriever: JiraRetriever = Depends(get_retriever),
+    db: Session = Depends(get_db),
+):
+    """
+    MSSQL Jira veritabanından kayıtları okuyup embedding indeksine ekler.
+
+    - MSSQL bağlantı bilgisi `MSSQL_URL` environment değişkeninden gelir.
+    - Hangi kayıtların çekileceği `JIRA_BACKFILL_QUERY` ile belirlenir.
+      Örnek:
+
+        export JIRA_BACKFILL_QUERY='
+          SELECT
+            JiraKey AS jira_key,
+            Summary AS summary,
+            Description AS description
+          FROM JiraIssues
+        '
+    """
+    records: List[JiraDbRecord] = fetch_jira_issues_from_db(db)
+    items = [
+        JiraIssueCreate(
+            jira_key=rec.jira_key,
+            summary=rec.summary,
+            description=rec.description,
+        )
+        for rec in records
+    ]
     issues = retriever.bulk_index(items)
     return issues
 
