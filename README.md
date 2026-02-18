@@ -25,42 +25,49 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Embedding Provider Seçimi
+## Konfigürasyon (.env dosyası)
+
+Servis `.env` dosyası üzerinden konfigüre edilir. İlk kurulumda:
+
+```bash
+cp .env.example .env
+```
+
+Sonra `.env` dosyasını düzenleyerek ayarlarını yapabilirsin.
+
+### Embedding Provider Seçimi
 
 Servis varsayılan olarak basit hash-based embedding kullanır (demo için). **Gerçek kullanım için Sentence Transformers önerilir:**
 
-### Sentence Transformers (Önerilen - Ücretsiz, Lokal)
+#### Sentence Transformers (Önerilen - Ücretsiz, Lokal)
 
-```bash
-export EMBEDDING_PROVIDER="sentence-transformers"
-export EMBEDDING_MODEL="paraphrase-multilingual-MiniLM-L12-v2"  # opsiyonel
-
-uvicorn app.main:app --reload
+`.env` dosyasında:
+```env
+EMBEDDING_PROVIDER=sentence-transformers
+EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
 ```
 
 **Popüler modeller:**
 - `paraphrase-multilingual-MiniLM-L12-v2` - Hızlı, küçük, Türkçe desteği
 - `paraphrase-multilingual-mpnet-base-v2` - Daha kaliteli, daha yavaş
 
-### OpenAI Embeddings (Ücretli, Yüksek Kalite)
+#### OpenAI Embeddings (Ücretli, Yüksek Kalite)
 
-```bash
-export EMBEDDING_PROVIDER="openai"
-export OPENAI_API_KEY="sk-..."
-export OPENAI_MODEL="text-embedding-3-small"  # opsiyonel
-
-uvicorn app.main:app --reload
+`.env` dosyasında:
+```env
+EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=sk-your-api-key-here
+OPENAI_MODEL=text-embedding-3-small
 ```
 
-### Azure OpenAI (Kurumsal)
+#### Azure OpenAI (Kurumsal)
 
-```bash
-export EMBEDDING_PROVIDER="azure"
-export AZURE_OPENAI_ENDPOINT="https://..."
-export AZURE_OPENAI_API_KEY="..."
-export AZURE_OPENAI_DEPLOYMENT="text-embedding-3-small"  # opsiyonel
-
-uvicorn app.main:app --reload
+`.env` dosyasında:
+```env
+EMBEDDING_PROVIDER=azure
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_API_KEY=your-azure-api-key-here
+AZURE_OPENAI_DEPLOYMENT=text-embedding-3-small
 ```
 
 ## Çalıştırma

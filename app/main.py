@@ -2,8 +2,12 @@ from typing import List
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
+
+# .env dosyasını yükle
+load_dotenv()
 
 from .db import get_db
 from .embeddings import SimpleHashEmbeddingProvider
