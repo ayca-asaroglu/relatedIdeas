@@ -10,7 +10,11 @@ ancak mimari olarak OpenAI, Azure, Google vb. gerçek embedding modelleri ile ra
 
 - FastAPI (REST API)
 - Dosya tabanlı embedding store (`data/embeddings/*.json`)
-- Basit embedding sağlayıcı (ileride gerçek LLM embedding ile değiştirilebilir)
+- Çoklu embedding sağlayıcı desteği:
+  - **Sentence Transformers** (önerilen, ücretsiz, lokal, Türkçe desteği)
+  - OpenAI Embeddings (ücretli, yüksek kalite)
+  - Azure OpenAI Embeddings (kurumsal)
+  - Basit hash-based (demo için)
 
 ## Kurulum
 
@@ -19,6 +23,44 @@ python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
 pip install -r requirements.txt
+```
+
+## Embedding Provider Seçimi
+
+Servis varsayılan olarak basit hash-based embedding kullanır (demo için). **Gerçek kullanım için Sentence Transformers önerilir:**
+
+### Sentence Transformers (Önerilen - Ücretsiz, Lokal)
+
+```bash
+export EMBEDDING_PROVIDER="sentence-transformers"
+export EMBEDDING_MODEL="paraphrase-multilingual-MiniLM-L12-v2"  # opsiyonel
+
+uvicorn app.main:app --reload
+```
+
+**Popüler modeller:**
+- `paraphrase-multilingual-MiniLM-L12-v2` - Hızlı, küçük, Türkçe desteği
+- `paraphrase-multilingual-mpnet-base-v2` - Daha kaliteli, daha yavaş
+
+### OpenAI Embeddings (Ücretli, Yüksek Kalite)
+
+```bash
+export EMBEDDING_PROVIDER="openai"
+export OPENAI_API_KEY="sk-..."
+export OPENAI_MODEL="text-embedding-3-small"  # opsiyonel
+
+uvicorn app.main:app --reload
+```
+
+### Azure OpenAI (Kurumsal)
+
+```bash
+export EMBEDDING_PROVIDER="azure"
+export AZURE_OPENAI_ENDPOINT="https://..."
+export AZURE_OPENAI_API_KEY="..."
+export AZURE_OPENAI_DEPLOYMENT="text-embedding-3-small"  # opsiyonel
+
+uvicorn app.main:app --reload
 ```
 
 ## Çalıştırma

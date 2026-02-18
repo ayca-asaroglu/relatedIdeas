@@ -38,8 +38,40 @@ app = FastAPI(
 def get_retriever() -> JiraRetriever:
     """
     Embedding'leri dosya sisteminde tutan retriever.
+    
+    Embedding provider seçimi:
+    - EMBEDDING_PROVIDER env değişkeni ile kontrol edilir:
+        - "sentence-transformers" veya "st" -> SentenceTransformerProvider (önerilen)
+        - "openai" -> OpenAIEmbeddingProvider
+        - "azure" -> AzureOpenAIEmbeddingProvider
+        - Yoksa veya "hash" -> SimpleHashEmbeddingProvider (demo)
+    
+    Örnek:
+        export EMBEDDING_PROVIDER="sentence-transformers"
+        export EMBEDDING_MODEL="paraphrase-multilingual-MiniLM-L12-v2"
     """
-    embedder = SimpleHashEmbeddingProvider(dim=128)
+    from .embeddings import (
+        SimpleHashEmbeddingProvider,
+        SentenceTransformerProvider,
+        OpenAIEmbeddingProvider,
+        AzureOpenAIEmbeddingProvider,
+    )
+    
+    provider_type = os.getenv("EMBEDDING_PROVIDER", "hash").lower()
+    
+    if provider_type in ("sentence-transformers", "st", "sentence_transformer"):
+        model_name = os.getenv("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
+        embedder = SentenceTransformerProvider(model_name=model_name)
+    elif provider_type == "openai":
+        model = os.getenv("OPENAI_MODEL", "text-embedding-3-small")
+        embedder = OpenAIEmbeddingProvider(model=model)
+    elif provider_type == "azure":
+        deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT", "text-embedding-3-small")
+        embedder = AzureOpenAIEmbeddingProvider(deployment_name=deployment_name)
+    else:
+        # Varsayılan: basit hash (demo için)
+        embedder = SimpleHashEmbeddingProvider(dim=128)
+    
     store = FileEmbeddingStore(base_dir="data/embeddings")
     return JiraRetriever(embedder=embedder, store=store)
 
