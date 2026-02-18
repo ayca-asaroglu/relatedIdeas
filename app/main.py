@@ -219,7 +219,7 @@ def find_similar_issues(
     - `store_issue=True` ise bu talebi de embedding ile birlikte klasöre kaydeder
     """
     try:
-        query_issue, similar = retriever.find_similar(
+        query_issue, similar, debug_info = retriever.find_similar(
             JiraIssueCreate(
                 jira_key=payload.jira_key,
                 summary=payload.summary,
@@ -237,6 +237,7 @@ def find_similar_issues(
                 description=query_issue.description,
             ),
             similar_issues=similar,
+            debug_info=debug_info,
         )
     except Exception as e:
         raise HTTPException(
