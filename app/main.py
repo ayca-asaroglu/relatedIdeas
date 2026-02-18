@@ -1,11 +1,18 @@
 from typing import List
+import os
+from pathlib import Path
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from .db import get_db
 from .embeddings import SimpleHashEmbeddingProvider
-from .jira_source import JiraDbRecord, fetch_jira_issues_from_db
+from .jira_source import (
+    JiraDbRecord,
+    fetch_jira_issues_from_db,
+    fetch_jira_issues_from_excel,
+    fetch_jira_issues_from_excel_path,
+)
 from .retrieval import JiraRetriever
 from .schemas import (
     JiraIssueCreate,
@@ -21,8 +28,8 @@ app = FastAPI(
     description=(
         "Jira taleplerinin summary/description alanlarından embedding üreten ve "
         "benzer talepleri RAG mantığı ile getiren servis.\n\n"
-        "Not: Jira kayıtlarının asıl kaynağı MSSQL; bu servis Jira kayıtlarını "
-        "MSSQL'den okuyup embedding'leri dosya sisteminde saklar."
+        "Not: Jira kayıtlarının asıl kaynağı MSSQL veya Excel olabilir; bu servis "
+        "Jira kayıtlarını bu kaynaklardan okuyup embedding'leri dosya sisteminde saklar."
     ),
     version="0.3.0",
 )
@@ -98,6 +105,93 @@ def backfill_from_mssql(
         '
     """
     records: List[JiraDbRecord] = fetch_jira_issues_from_db(db)
+    items = [
+        JiraIssueCreate(
+            jira_key=rec.jira_key,
+            summary=rec.summary,
+            description=rec.description,
+        )
+        for rec in records
+    ]
+    issues = retriever.bulk_index(items)
+    return issues
+
+
+@app.post(
+    "/issues/backfill-from-excel",
+    response_model=List[JiraIssueOut],
+    tags=["issues"],
+)
+async def backfill_from_excel(
+    file: UploadFile = File(...),
+    retriever: JiraRetriever = Depends(get_retriever),
+):
+    """
+    Excel dosyasından Jira kayıtlarını okuyup embedding indeksine ekler.
+
+    Beklenen Excel kolonları:
+    - jira_key (opsiyonel)
+    - summary (zorunlu)
+    - description (opsiyonel)
+
+    Örnek akış:
+    - Jira'dan export aldığın Excel dosyasını bu endpoint'e upload et
+    - Servis her satır için embedding üretip `data/embeddings` klasörüne yazar
+    """
+    records = fetch_jira_issues_from_excel(file.file)
+    items = [
+        JiraIssueCreate(
+            jira_key=rec.jira_key,
+            summary=rec.summary,
+            description=rec.description,
+        )
+        for rec in records
+    ]
+    issues = retriever.bulk_index(items)
+    return issues
+
+
+@app.post(
+    "/issues/backfill-from-excel-file",
+    response_model=List[JiraIssueOut],
+    tags=["issues"],
+)
+def backfill_from_excel_file(
+    retriever: JiraRetriever = Depends(get_retriever),
+    path: str | None = None,
+):
+    """
+    Sunucu tarafındaki bir Excel dosyasından Jira kayıtlarını okuyup
+    embedding indeksine ekler (upload gerekmez).
+
+    - Excel dosyasını `app` klasörü altına `jira_issues.xlsx` ismiyle koyarsan,
+      herhangi bir parametre veya environment değişkeni vermeden bu endpoint'i
+      çağırman yeterli olur.
+
+    - İsteğe bağlı olarak:
+        1) `path` parametresi ile tam/relatif path verebilirsin:
+           `/issues/backfill-from-excel-file?path=app/jira_issues.xlsx`
+        2) `JIRA_EXCEL_PATH` environment değişkenini tanımlayabilirsin:
+
+               export JIRA_EXCEL_PATH="app/jira_issues.xlsx"
+
+    Beklenen kolonlar:
+    - jira_key (opsiyonel)
+    - summary (zorunlu)
+    - description (opsiyonel)
+    """
+    default_path = Path(__file__).resolve().parent / "jira_issues.xlsx"
+    env_path = os.getenv("JIRA_EXCEL_PATH")
+    excel_path_str = path or env_path or str(default_path)
+    excel_path = Path(excel_path_str)
+
+    if not excel_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Excel dosyası bulunamadı: {excel_path}",
+        )
+
+    records = fetch_jira_issues_from_excel_path(excel_path)
     items = [
         JiraIssueCreate(
             jira_key=rec.jira_key,
