@@ -218,20 +218,31 @@ def find_similar_issues(
     - `min_score` üzerindekilerden en iyi `top_k` sonucu döner
     - `store_issue=True` ise bu talebi de embedding ile birlikte klasöre kaydeder
     """
-    query_issue, similar = retriever.find_similar(
-        JiraIssueCreate(
-            jira_key=payload.jira_key,
-            summary=payload.summary,
-            description=payload.description,
-        ),
-        top_k=payload.top_k,
-        min_score=payload.min_score,
-        store_query=payload.store_issue,
-    )
-    return SimilarityResponse(
-        query_issue=query_issue,
-        similar_issues=similar,
-    )
+    try:
+        query_issue, similar = retriever.find_similar(
+            JiraIssueCreate(
+                jira_key=payload.jira_key,
+                summary=payload.summary,
+                description=payload.description,
+            ),
+            top_k=payload.top_k,
+            min_score=payload.min_score,
+            store_query=payload.store_issue,
+        )
+        return SimilarityResponse(
+            query_issue=JiraIssueOut(
+                id=query_issue.id,
+                jira_key=query_issue.jira_key,
+                summary=query_issue.summary,
+                description=query_issue.description,
+            ),
+            similar_issues=similar,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Benzerlik araması sırasında hata: {str(e)}",
+        )
 
 
 @app.get("/issues", response_model=List[JiraIssueOut], tags=["issues"])

@@ -31,6 +31,6 @@ class SimilarityRequest(JiraIssueBase):
 
 
 class SimilarityResponse(BaseModel):
-    query_issue: JiraIssueBase
+    query_issue: JiraIssueOut
     similar_issues: List[SimilarIssue]
 
